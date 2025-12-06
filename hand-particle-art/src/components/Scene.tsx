@@ -4,16 +4,16 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { HandData } from './HandTracker';
 
-export type ShapeType = 'sphere' | 'heart' | 'torus' | 'galaxy';
+export type ShapeType = 'sphere' | 'torus' | 'galaxy';
 
 interface SceneProps {
   currentShape: ShapeType;
   handDataRef: React.MutableRefObject<HandData>;
 }
 
-const PARTICLE_COUNT = 50000; // Extreme density
-const FIELD_RADIUS = 18; // Widespread distribution
-const HAND_INFLUENCE_RADIUS = 8.0; // Larger interaction zone
+const PARTICLE_COUNT = 50000;
+const FIELD_RADIUS = 18;
+const HAND_INFLUENCE_RADIUS = 8.0;
 
 export default function Scene({ currentShape, handDataRef }: SceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,21 +21,20 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const particlesRef = useRef<THREE.Points | null>(null);
+  
   const requestRef = useRef<number>(0);
   
-  // Physics & State
   const originalPositionsRef = useRef<Float32Array>(new Float32Array(PARTICLE_COUNT * 3));
   const randomOffsetsRef = useRef<Float32Array>(new Float32Array(PARTICLE_COUNT));
   const timeRef = useRef<number>(0);
   
-  // Camera State for smooth transitions
   const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 25));
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x050505, 0.02); // Darker fog
+    scene.fog = new THREE.FogExp2(0x050505, 0.02);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -98,7 +97,6 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     currentPositions.set(originalPositionsRef.current);
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      // Futuristic Neon Palette
       const t = i / PARTICLE_COUNT;
       if (Math.random() > 0.5) {
           color.setHSL(0.6 + t * 0.1, 0.9, 0.6); // Cyan/Blue
@@ -153,10 +151,10 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
 
   function calculateShape(type: ShapeType) {
     const positions = originalPositionsRef.current;
+    
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       let x = 0, y = 0, z = 0;
       
-      // Normalized index
       const t = i / PARTICLE_COUNT;
 
       if (type === 'sphere') {
@@ -167,17 +165,6 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
          y = r * Math.sin(phi) * Math.sin(theta);
          z = r * Math.cos(phi);
       } 
-      else if (type === 'heart') {
-         const phi = Math.random() * Math.PI * 2;
-         const theta = Math.random() * Math.PI;
-         // Complex heart formula approx
-         const r = FIELD_RADIUS * 0.05 * Math.sqrt(Math.random()); 
-         const xx = 16 * Math.pow(Math.sin(phi), 3);
-         const yy = 13 * Math.cos(phi) - 5 * Math.cos(2*phi) - 2 * Math.cos(3*phi) - Math.cos(4*phi);
-         x = xx * r * 8;
-         y = yy * r * 8 + 2;
-         z = (Math.random() - 0.5) * 5;
-      }
       else if (type === 'torus') {
          const u = Math.random() * Math.PI * 2;
          const v = Math.random() * Math.PI * 2;
@@ -185,21 +172,16 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
          x = (R + r * Math.cos(v)) * Math.cos(u);
          y = (R + r * Math.cos(v)) * Math.sin(u);
          z = r * Math.sin(v);
-         // Add some dispersion
          x += (Math.random() - 0.5);
          y += (Math.random() - 0.5);
          z += (Math.random() - 0.5);
       }
       else if (type === 'galaxy') {
-         const spiral = i * 0.02; // Tightness
-         const arms = 3;
-         const armOffset = (i % arms) * (Math.PI * 2 / arms);
+         const spiral = i * 0.02; 
          const r = Math.random() * FIELD_RADIUS * 1.5;
-         const angle = spiral + armOffset;
-         const curve = Math.pow(r / FIELD_RADIUS, 1.5); // Density distribution
-         
+         const angle = spiral + (i % 3) * (Math.PI * 2 / 3);
          x = Math.cos(angle) * r;
-         y = (Math.random() - 0.5) * (2 + r * 0.2); // Flat disc with bulge
+         y = (Math.random() - 0.5) * (2 + r * 0.2);
          z = Math.sin(angle) * r;
       }
 
@@ -213,38 +195,29 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     if (!cameraRef.current) return;
     const hand = handDataRef.current;
     
-    // Dynamic Camera Parallax based on Hand Position
-    // If hand is detected, tilt camera slightly
     if (hand.isDetected) {
         // Map 0..1 to -Range..Range
-        // Tilt more on X axis (rotation Y) based on hand X
-        // AMPLIFIED MOVEMENT: Increase multipliers EXTREME
-        const targetX = (hand.x - 0.5) * 80; // Increased from 35
-        const targetY = (hand.y - 0.5) * 60; // Increased from 35
+        const targetX = (hand.x - 0.5) * 80;
+        const targetY = (hand.y - 0.5) * 60;
         
-        // Also rotate based on hand tilt if available
-        const rotY = hand.tiltX * 3.0; // Extreme rotation
-        const rotX = hand.tiltY * 2.0; // Add Up/Down rotation
+        const rotY = hand.tiltX * 3.0;
+        const rotX = hand.tiltY * 2.0;
         
-        // Smoothly interpolate
         cameraRef.current.position.x += (targetX - cameraRef.current.position.x) * 0.08;
         cameraRef.current.position.y += (-targetY - cameraRef.current.position.y) * 0.08;
-        // Dynamic Zoom based on gesture intensity or y position
-        // Limit zoom out distance to avoid "too small" look
-        // Base Z is 30. Hand Y goes 0(top) to 1(bottom).
-        // hand.y * 10 => 0 to 10. Max Z = 40.
-        // Let's reduce range. 
-        const targetZ = 25 + (hand.y * 5); // Range 25 to 30. Closer base.
+        
+        // Zoom Logic Update
+        // Hand Y: 0(Top) -> 1(Bottom).
+        const targetZ = 5 + (hand.y * 30); 
+        
         cameraRef.current.position.z += (targetZ - cameraRef.current.position.z) * 0.05;
 
         cameraRef.current.rotation.y += (rotY - cameraRef.current.rotation.y) * 0.08;
         cameraRef.current.rotation.x += (rotX - cameraRef.current.rotation.x) * 0.08;
     } else {
-        // Return to center slowly
-        cameraRef.current.position.lerp(new THREE.Vector3(0,0,25), 0.02); // Closer default Z
+        cameraRef.current.position.lerp(new THREE.Vector3(0,0,25), 0.02);
         cameraRef.current.rotation.x = 0;
         cameraRef.current.rotation.y = 0;
-
         cameraRef.current.rotation.z = 0;
     }
     
@@ -262,9 +235,8 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     const time = timeRef.current;
     const hand = handDataRef.current;
     
-    // Convert normalized hand coords to world space approx
     const vFOV = THREE.MathUtils.degToRad(75);
-    const distFromCam = 20; // Plane z=5 (25-5)
+    const distFromCam = 20; 
     const visibleHeight = 2 * Math.tan(vFOV / 2) * distFromCam;
     const visibleWidth = visibleHeight * (window.innerWidth / window.innerHeight);
     
@@ -272,7 +244,6 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     const wy = (0.5 - hand.y) * visibleHeight;
     const wz = 5;
 
-    // Determine Interaction Mode
     let mode = 'float';
     if (hand.isDetected) {
         mode = hand.gesture;
@@ -281,12 +252,10 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const idx = i * 3;
       
-      const tx = targetPositions[idx];
-      const ty = targetPositions[idx + 1];
-      const tz = targetPositions[idx + 2];
+      let tx = targetPositions[idx];
+      let ty = targetPositions[idx + 1];
+      let tz = targetPositions[idx + 2];
 
-      // Base Floating Motion (Simplex-like noise)
-      // Faster, bigger noise for dynamic feel
       const noiseX = Math.sin(time * 1.5 + offsets[i] * 0.5) * 0.35;
       const noiseY = Math.cos(time * 1.2 + offsets[i] * 0.5) * 0.35;
       const noiseZ = Math.sin(time * 1.8 + offsets[i] * 0.5) * 0.35;
@@ -299,84 +268,64 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
       let cg = colors[idx + 1];
       let cb = colors[idx + 2];
 
-      // 1. Move towards target (Shape formation)
-      // Faster or slower depending on mode
-      const returnSpeed = mode === 'fist' ? 0.01 : 0.05; // Fist breaks formation
+      // Move to target
+      const returnSpeed = mode === 'fist' ? 0.01 : 0.05;
       cx += (tx + noiseX - cx) * returnSpeed;
       cy += (ty + noiseY - cy) * returnSpeed;
       cz += (tz + noiseZ - cz) * returnSpeed;
 
-      // 2. Hand Interaction
+      // Interaction
       if (hand.isDetected) {
           const dx = cx - wx;
           const dy = cy - wy;
           const dz = cz - wz;
           const distSq = dx*dx + dy*dy + dz*dz;
           
-          if (distSq < HAND_INFLUENCE_RADIUS * HAND_INFLUENCE_RADIUS + 10) { // +10 buffer
+          if (distSq < HAND_INFLUENCE_RADIUS * HAND_INFLUENCE_RADIUS + 10) {
               const dist = Math.sqrt(distSq);
               const nx = dx / dist;
               const ny = dy / dist;
               const nz = dz / dist;
               
-              // --- Gesture Logic ---
-              
               if (mode === 'fist') {
-                  // BLACK HOLE / GRAVITY
-                  // Strong attraction to center
-                  // AMPLIFIED STRENGTH EXTREME
-                  const strength = (1 - dist / (HAND_INFLUENCE_RADIUS * 3)) * 5.0; // Radius * 3, Strength * 5
-                  cx -= nx * strength * 5; // Hyper speed suck
+                  const strength = (1 - dist / (HAND_INFLUENCE_RADIUS * 3)) * 5.0; 
+                  cx -= nx * strength * 5; 
                   cy -= ny * strength * 5;
                   cz -= nz * strength * 5;
                   
-                  // Add swirl - TORNADO
                   const swirlStrength = 2.0;
                   cx += -ny * swirlStrength;
                   cy += nx * swirlStrength;
                   
-                  // Color shift to Red/Orange
                   cr += (1.0 - cr) * 0.2;
                   cg += (0.0 - cg) * 0.2;
                   cb += (0.0 - cb) * 0.2;
               } 
               else if (mode === 'pinch') {
-                  // FREEZE / PRECISE CONTROL
                   const strength = (1 - dist / HAND_INFLUENCE_RADIUS) * 1.5;
                    if (dist > 0.2) { 
-                      cx -= nx * strength * 3.0; // Snap to center
+                      cx -= nx * strength * 3.0;
                       cy -= ny * strength * 3.0;
                       cz -= nz * strength * 3.0;
                    }
-                   
-                   // Color shift to White
                    cr += (1.0 - cr) * 0.3;
                    cg += (1.0 - cg) * 0.3;
                    cb += (1.0 - cb) * 0.3;
               }
               else {
-                  // OPEN PALM (Default) - REPULSION / FORCE FIELD
-                  // SUPERNOVA EXPLOSION
-                  // Much larger radius and force
                   const radius = HAND_INFLUENCE_RADIUS * 2.5; 
                   if (dist < radius) { 
-                      const strength = (1 - dist / radius) * 15.0; // Massive force
+                      const strength = (1 - dist / radius) * 15.0; 
                       cx += nx * strength;
                       cy += ny * strength;
                       cz += nz * strength;
                       
-                      // Color shift to Cyan/Blue bright
                       cr += (0.0 - cr) * 0.3;
                       cg += (1.0 - cg) * 0.3;
                       cb += (1.0 - cb) * 0.3;
                   }
               }
           }
-      } else {
-          // Revert colors slowly to base logic if needed, 
-          // but usually overwriting with next frame's loop is okay 
-          // if we store base color. 
-          // For now, let them drift.
       }
 
       positions[idx] = cx;
