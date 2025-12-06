@@ -11,9 +11,9 @@ interface SceneProps {
   handDataRef: React.MutableRefObject<HandData>;
 }
 
-const PARTICLE_COUNT = 12000; // Increased count for better visuals
-const FIELD_RADIUS = 10;
-const HAND_INFLUENCE_RADIUS = 6.0;
+const PARTICLE_COUNT = 50000; // Extreme density
+const FIELD_RADIUS = 18; // Widespread distribution
+const HAND_INFLUENCE_RADIUS = 8.0; // Larger interaction zone
 
 export default function Scene({ currentShape, handDataRef }: SceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,7 +29,7 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
   const timeRef = useRef<number>(0);
   
   // Camera State for smooth transitions
-  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 20));
+  const cameraTargetPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 25));
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -39,7 +39,7 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = 20;
+    camera.position.z = 25;
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
@@ -117,12 +117,12 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
-      size: 0.12,
+      size: 0.55, // Massive bokeh
       vertexColors: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.6, // Lower opacity to handle overlap intensity
       map: createGlowTexture()
     });
 
@@ -218,22 +218,33 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     if (hand.isDetected) {
         // Map 0..1 to -Range..Range
         // Tilt more on X axis (rotation Y) based on hand X
-        // AMPLIFIED MOVEMENT: Increase multipliers
-        const targetX = (hand.x - 0.5) * 35; // Increased from 10
-        const targetY = (hand.y - 0.5) * 35; // Increased from 10
+        // AMPLIFIED MOVEMENT: Increase multipliers EXTREME
+        const targetX = (hand.x - 0.5) * 80; // Increased from 35
+        const targetY = (hand.y - 0.5) * 60; // Increased from 35
         
         // Also rotate based on hand tilt if available
-        const rotY = hand.tiltX * 1.5; // Hand tilt affects camera rotation significantly
+        const rotY = hand.tiltX * 3.0; // Extreme rotation
+        const rotX = hand.tiltY * 2.0; // Add Up/Down rotation
         
         // Smoothly interpolate
         cameraRef.current.position.x += (targetX - cameraRef.current.position.x) * 0.08;
         cameraRef.current.position.y += (-targetY - cameraRef.current.position.y) * 0.08;
+        // Dynamic Zoom based on gesture intensity or y position
+        // Limit zoom out distance to avoid "too small" look
+        // Base Z is 30. Hand Y goes 0(top) to 1(bottom).
+        // hand.y * 10 => 0 to 10. Max Z = 40.
+        // Let's reduce range. 
+        const targetZ = 25 + (hand.y * 5); // Range 25 to 30. Closer base.
+        cameraRef.current.position.z += (targetZ - cameraRef.current.position.z) * 0.05;
+
         cameraRef.current.rotation.y += (rotY - cameraRef.current.rotation.y) * 0.08;
+        cameraRef.current.rotation.x += (rotX - cameraRef.current.rotation.x) * 0.08;
     } else {
         // Return to center slowly
-        cameraRef.current.position.lerp(new THREE.Vector3(0,0,20), 0.02);
+        cameraRef.current.position.lerp(new THREE.Vector3(0,0,25), 0.02); // Closer default Z
         cameraRef.current.rotation.x = 0;
         cameraRef.current.rotation.y = 0;
+
         cameraRef.current.rotation.z = 0;
     }
     
@@ -253,7 +264,7 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
     
     // Convert normalized hand coords to world space approx
     const vFOV = THREE.MathUtils.degToRad(75);
-    const distFromCam = 15; // Plane z=5 (20-15)
+    const distFromCam = 20; // Plane z=5 (25-5)
     const visibleHeight = 2 * Math.tan(vFOV / 2) * distFromCam;
     const visibleWidth = visibleHeight * (window.innerWidth / window.innerHeight);
     
@@ -313,51 +324,51 @@ export default function Scene({ currentShape, handDataRef }: SceneProps) {
               if (mode === 'fist') {
                   // BLACK HOLE / GRAVITY
                   // Strong attraction to center
-                  // AMPLIFIED STRENGTH
-                  const strength = (1 - dist / (HAND_INFLUENCE_RADIUS * 2)) * 2.5; // Increased from 0.8
-                  cx -= nx * strength * 3; // Increased speed
-                  cy -= ny * strength * 3;
-                  cz -= nz * strength * 3;
+                  // AMPLIFIED STRENGTH EXTREME
+                  const strength = (1 - dist / (HAND_INFLUENCE_RADIUS * 3)) * 5.0; // Radius * 3, Strength * 5
+                  cx -= nx * strength * 5; // Hyper speed suck
+                  cy -= ny * strength * 5;
+                  cz -= nz * strength * 5;
                   
-                  // Add swirl - FASTER
-                  const swirlStrength = 0.8;
+                  // Add swirl - TORNADO
+                  const swirlStrength = 2.0;
                   cx += -ny * swirlStrength;
                   cy += nx * swirlStrength;
                   
                   // Color shift to Red/Orange
-                  cr += (1.0 - cr) * 0.15;
-                  cg += (0.1 - cg) * 0.15;
-                  cb += (0.0 - cb) * 0.15;
+                  cr += (1.0 - cr) * 0.2;
+                  cg += (0.0 - cg) * 0.2;
+                  cb += (0.0 - cb) * 0.2;
               } 
               else if (mode === 'pinch') {
                   // FREEZE / PRECISE CONTROL
-                  // Particles lock in place or form a line? 
-                  // Let's make them condense very tightly to hand center
-                  const strength = (1 - dist / HAND_INFLUENCE_RADIUS) * 0.8;
-                   if (dist > 0.5) { // Tighter threshold
-                      cx -= nx * strength * 1.5;
-                      cy -= ny * strength * 1.5;
-                      cz -= nz * strength * 1.5;
+                  const strength = (1 - dist / HAND_INFLUENCE_RADIUS) * 1.5;
+                   if (dist > 0.2) { 
+                      cx -= nx * strength * 3.0; // Snap to center
+                      cy -= ny * strength * 3.0;
+                      cz -= nz * strength * 3.0;
                    }
                    
                    // Color shift to White
-                   cr += (1.0 - cr) * 0.25;
-                   cg += (1.0 - cg) * 0.25;
-                   cb += (1.0 - cb) * 0.25;
+                   cr += (1.0 - cr) * 0.3;
+                   cg += (1.0 - cg) * 0.3;
+                   cb += (1.0 - cb) * 0.3;
               }
               else {
                   // OPEN PALM (Default) - REPULSION / FORCE FIELD
-                  // AMPLIFIED REPULSION
-                  if (dist < HAND_INFLUENCE_RADIUS * 1.2) { // Slightly larger radius
-                      const strength = (1 - dist / (HAND_INFLUENCE_RADIUS * 1.2)) * 4.0; // Much stronger (was 1.5)
+                  // SUPERNOVA EXPLOSION
+                  // Much larger radius and force
+                  const radius = HAND_INFLUENCE_RADIUS * 2.5; 
+                  if (dist < radius) { 
+                      const strength = (1 - dist / radius) * 15.0; // Massive force
                       cx += nx * strength;
                       cy += ny * strength;
                       cz += nz * strength;
                       
                       // Color shift to Cyan/Blue bright
-                      cr += (0.0 - cr) * 0.2;
-                      cg += (1.0 - cg) * 0.2;
-                      cb += (1.0 - cb) * 0.2;
+                      cr += (0.0 - cr) * 0.3;
+                      cg += (1.0 - cg) * 0.3;
+                      cb += (1.0 - cb) * 0.3;
                   }
               }
           }
